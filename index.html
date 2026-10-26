@@ -295,7 +295,7 @@ figcaption{font-size:11px;color:#5a6472;margin-top:4px}
 
   <section id="graphWrap">
     <canvas id="canvas"></canvas>
-    <div id="graphTitle"></div>
+    
     <div id="emptyState">
       <b>측정 대기 중</b>
       <span>측정 시간을 고르고 <b>시작</b>을 누르세요.<br><b>점선 세로 바 = PEAK 발생 지점</b>입니다. 바를 탭하면 그 구간이 확대되어 열립니다.</span>
@@ -494,12 +494,22 @@ async function initMic(){
     micReady=true;
   }catch(err){micReady=false;toast('마이크 권한 거부 — 소음 측정 비활성');}
 }
+function micLoop(){
+  if(!analyser)return;
+  analyser.getFloatTimeDomainData(micBuf);
+  let s=0;for(let i=0;i<micBuf.length;i++)s+=micBuf[i]*micBuf[i];
+  const rms=Math.max(Math.sqrt(s/micBuf.length),1e-7);
+  const z=20*Math.log10(rms)+DB_OFFSET;
+  analyser.getFloatFrequencyData(freqBuf);
+  let pz=0,pa=0;for(let i=1;i<freqBuf.length;i++){const d=freqBuf[i];if(!Number.isFinite(d))continue;const p=Math.pow(10,d/10);pz+=p;pa+=p*aW[i];}
+  L.noise_z=z;L.noise_a=z+(pz>0&&pa>0?10*Math.log10(pa/pz):0);
+}
 /* 자장: Android Chrome은 Magnetometer가 실험 플래그 뒤에 있어 기본은 'noapi' 상태가 됨 */
 function initMag(){
   try{
     if(typeof Magnetometer==='undefined'){
       magState='noapi';
-      toast(iOS?'자장: iOS는 자장 센서 API가 없습니다':'자장: Chrome 설정 변경이 필요합니다 — 사용 안내(i) 참고');
+      toast(iOS?'자장: iOS 브라우저는 자장 센서를 제공하지 않습니다':'자장: 이 브라우저는 자장 센서 접근을 지원하지 않습니다 — 사용 안내(i) 참고');
       return;
     }
     magSensor=new Magnetometer({frequency:60,referenceFrame:'device'});
@@ -523,7 +533,7 @@ function initMag(){
 }
 function magDiag(){
   if(magState==='ok')return null;
-  if(magState==='noapi')return iOS?'iOS 미지원':'API 꺼짐·설정 필요';
+  if(magState==='noapi')return iOS?'iOS 미지원':'브라우저 미지원';
   if(magState==='denied')return '권한 거부';
   if(magState==='unreadable')return '자력계 없음';
   if(magState==='err')return '센서 오류';
@@ -565,7 +575,7 @@ function seedDemo(){
 function tick(){
   tickN++;elapsed=tickN/10;
   let vals;
-  if(demoMode)vals=demoStep(elapsed);else{if(analyser)micLoop();vals=readLive();}
+  if(demoMode)vals=demoStep(elapsed);else{try{if(analyser)micLoop();}catch(err){}vals=readLive();}
   pushSample(elapsed,vals);
   if(tickN%10===0)for(const k of SER_KEYS)detectPeak(k,T.length);
   if(duration&&elapsed>=duration-1e-9){stop(true);return;}
@@ -647,8 +657,6 @@ function draw(){
   const X=t=>padL+(t-start)/span*(cssW-padL-padR);
   const lanes=lanesNow(),laneH=cssH/lanes.length;
   markerHits=[];laneBounds=[];
-  if(multiN===1){const w=V(currentCh);els.graphTitle.textContent=w.c.name+' · '+w.m.label+' ['+w.u.u+']';}
-  els.graphTitle.style.display=multiN>1?'none':'';
 
   for(let li=0;li<lanes.length;li++){
     const ch=lanes[li],w=V(ch),k=w.series,arr=S[k],u=w.u,col=w.c.color;
@@ -663,7 +671,7 @@ function draw(){
     /* 레인 배경·제목 */
     if(li>0){ctx.strokeStyle='#1D2735';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,top);ctx.lineTo(cssW,top);ctx.stroke();}
     ctx.fillStyle=col;ctx.font='600 11px "IBM Plex Mono",monospace';ctx.textAlign='left';ctx.textBaseline='top';
-    ctx.fillText((multiN>1?w.c.name+' · ':'')+w.m.label+' ['+u.u+']',padL+2,top+5);
+    ctx.fillText(w.c.name+' · '+w.m.label+' ['+u.u+']',padL+2,top+5);
 
     /* 격자·y 눈금 */
     ctx.strokeStyle='#1D2735';ctx.lineWidth=1;ctx.fillStyle='#8C98A8';ctx.font='10px "IBM Plex Mono",monospace';
@@ -876,10 +884,11 @@ function openCalSheet(){
 function openHelp(){
   openSheet('<div class="sheetHead"><b>사용 안내</b></div><div class="helpBox">'
     +'<h3>시작 전</h3><ul><li>센서는 <b>https</b>에서만 허용됩니다. 사내 웹서버나 GitHub Pages 등에 올려서 여세요.</li><li>측정 중에는 화면을 켜두세요. 백그라운드로 가면 브라우저가 샘플링을 멈출 수 있습니다.</li></ul>'
-    +'<h3>자장이 안 보일 때 (중요)</h3><ul>'
-    +'<li>Android Chrome은 기본 설정에서 <b>자장 API가 꺼져</b> 있습니다. 주소창에 <b>chrome://flags/#enable-generic-sensor-extra-classes</b> 를 입력 → <b>Enabled</b> 선택 → Chrome을 완전히 닫았다가 다시 열고 사이트에 재접속하세요. 계기판에 상태가 표시됩니다.</li>'
-    +'<li>설정 후에도 <b>자력계 없음</b>으로 나오면 그 폰은 자장 센서 하드웨어가 없는 기기입니다(보급형 일부).</li>'
-    +'<li><b>iOS(iPhone/iPad)는 자장 측정이 불가능</b>합니다 — Safari가 자장 API를 제공하지 않습니다.</li></ul>'
+    +'<h3>자장 측정 제한 (중요)</h3><ul>'
+    +'<li>현재 Chrome은 웹페이지가 자장 센서 원시값(µT)을 읽는 기능(Magnetometer API)을 제공하지 않습니다. 예전 안내의 chrome://flags 설정은 Chrome에서 삭제되었습니다.</li>'
+    +'<li>그래서 웹 버전에서는 자장 칸에 <b>브라우저 미지원</b>이 표시되고, 진동·소음만 측정됩니다.</li>'
+    +'<li>자장 측정이 필요하면 센서를 직접 읽는 <b>안드로이드 앱</b>이 필요합니다.</li>'
+    +'<li><b>iOS(iPhone/iPad)</b> 브라우저도 자장 센서를 제공하지 않습니다.</li></ul>'
     +'<h3>단위 · 측정량</h3><ul>'
     +'<li><b>진동</b> — 가속도 peak / 가속도 rms (m/s², gal, g), 속도 rms (<b>µm/s rms</b>, mm/s rms). 속도는 가속도를 적분해 구하므로 폰 센서 노이즈 바닥보다 작은 값은 신뢰하기 어렵습니다.</li>'
     +'<li><b>소음</b> — Z(무가중) / A가중, <b>dB rms</b>(추정 SPL) 또는 dBFS rms. 기준 소음계와 비교한 <b>보정값</b>을 넣으면 정확도가 올라갑니다.</li>'
@@ -1108,6 +1117,7 @@ function updateHUD(){
     els['cur-'+ch].textContent=last>=0?fv(w.u,S[w.series][last]):'--';
     const ok=ch!=='mag'||demoMode||magState==='ok';
     const d=(ch==='mag'&&!ok)?magDiag():null;
+    if(ch==='mag'&&!ok&&magDiag()){els['cur-'+ch].textContent='--';}
     els['sub-'+ch].textContent=d||subText(ch,last);
     els['sub-'+ch].classList.toggle('warn',!!d);
     els['hold-'+ch].textContent=s.n?fv(w.u,s.max):'--';
