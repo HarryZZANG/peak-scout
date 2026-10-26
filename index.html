@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0F14">
+<title>PEAK SCOUT — 진동·소음·자장 측정기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B0F14; --panel:#111823; --panel2:#0D131C; --ink:#E9EDF3; --muted:#8C98A8;
+  --line:#1D2735; --line2:#273245;
+  --vib:#FFB300; --noise:#3BC7DE; --mag:#E9609F; --alert:#FF4B3E; --ok:#43D17C;
+  --disp:'Chakra Petch','IBM Plex Sans KR',sans-serif;
+  --body:'IBM Plex Sans KR',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--body)}
+body{font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 3px);}
+#app{max-width:640px;margin:0 auto;padding:0 14px calc(26px + env(safe-area-inset-bottom))}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--noise);outline-offset:2px}
+button:disabled{opacity:.35;cursor:default}
+select,input{font-family:var(--body)}
+
+/* 헤더 */
+#appHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 2px 10px}
+.brand h1{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.16em}
+.brand p{font-size:11px;color:var(--muted);letter-spacing:.06em;margin-top:1px}
+.hstat{display:flex;align-items:center;gap:8px}
+.demotag{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--vib);border:1px solid var(--vib);border-radius:4px;padding:2px 6px;letter-spacing:.12em}
+.rec{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted)}
+.rec i{width:8px;height:8px;border-radius:50%;background:#39424f;display:inline-block}
+.rec.on{color:var(--ink)} .rec.on i{background:var(--alert);animation:blink 1.1s steps(2,start) infinite}
+@keyframes blink{50%{opacity:.2}}
+.hbtn{height:30px;padding:0 10px;border:1px solid var(--line2);border-radius:8px;color:var(--muted);font-size:12.5px;font-weight:600}
+.hbtn:hover{color:var(--ink)}
+.hbtn.i{width:30px;padding:0;font-family:var(--disp);font-weight:700;font-size:14px}
+#recBadge{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted);background:var(--panel);border:1px dashed var(--line2);border-radius:8px;padding:6px 10px;margin-bottom:10px}
+#recBadge b{color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#recBadge em{font-style:normal;margin-left:auto;font-family:var(--mono);font-size:11px;flex:0 0 auto}
+#recBadge em.dirty{color:var(--vib)}
+
+/* 계기판 */
+#strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.cell{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:10px;padding:9px 9px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cell.sel{border-color:var(--c);border-left-width:3px}
+.cname{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.cname em{font-style:normal;font-size:9.5px;margin-left:auto;overflow:hidden;text-overflow:ellipsis}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:0 0 auto}
+.cval{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden}
+.csub{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chold{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted);letter-spacing:.05em;margin-top:2px}
+.chold b{font-family:var(--mono);font-size:11px;color:var(--ink);margin-left:auto;font-weight:600}
+.lamp{width:7px;height:7px;border-radius:50%;background:#39424f;flex:0 0 auto}
+.lamp.on{background:var(--alert);box-shadow:0 0 7px var(--alert)}
+
+/* 컨트롤 */
+#controls{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 12px 14px;margin-bottom:10px}
+.lbl{display:block;font-size:11px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line2);border-radius:7px;padding:6px 11px;background:var(--panel2)}
+.chip.active{color:#0B0F14;background:var(--ink);border-color:var(--ink)}
+.row2{display:flex;gap:8px;margin-top:12px;align-items:stretch}
+.btn{border:1px solid var(--line2);border-radius:9px;padding:10px 14px;font-size:14px;font-weight:600;background:var(--panel2);transition:filter .15s}
+.btn:hover:not(:disabled){filter:brightness(1.18)}
+.btn.primary{background:var(--ink);color:#0B0F14;border-color:var(--ink)}
+.btn.danger{background:var(--alert);color:#fff;border-color:var(--alert)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:7px 10px;font-size:12.5px}
+.btn.big{flex:1;font-family:var(--disp);letter-spacing:.06em}
+.sens{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);justify-content:center;flex:0 0 auto}
+.sel{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);border-radius:7px;padding:8px 8px;font-size:12.5px;min-width:0}
+
+/* 탭 + 단위 */
+#tabs{display:flex;gap:6px;margin-bottom:8px}
+.tab{flex:1;padding:9px 0;font-size:13.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:9px;background:var(--panel);position:relative}
+.tab.active{color:var(--ink);border-color:var(--tc)}
+.tab.active::after{content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:-1px;width:34px;height:2px;background:var(--tc)}
+.tab[data-ch=vib]{--tc:var(--vib)} .tab[data-ch=noise]{--tc:var(--noise)} .tab[data-ch=mag]{--tc:var(--mag)}
+#unitRow{display:flex;gap:8px;align-items:flex-end;margin-bottom:4px}
+#unitRow label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--muted);letter-spacing:.06em;flex:1;min-width:0}
+#unitRow .btn{flex:0 0 auto;padding:8px 10px;font-size:12px}
+#unitNote{font-size:10.5px;color:var(--muted);margin:0 2px 8px;line-height:1.5;min-height:15px}
+
+/* 그래프 */
+#graphWrap{background:var(--panel2);border:1px solid var(--line);border-radius:12px;position:relative;margin-bottom:8px}
+#canvas{display:block;width:100%;height:320px;touch-action:none;cursor:crosshair}
+#graphTitle{position:absolute;top:7px;left:50px;right:10px;font-size:11px;color:var(--muted);letter-spacing:.03em;font-family:var(--mono);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#emptyState{position:absolute;inset:0;bottom:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;padding:0 26px;pointer-events:none}
+#emptyState b{font-size:14px}
+#emptyState span{font-size:12px;color:var(--muted);line-height:1.7}
+#emptyState .ebtns{display:flex;gap:8px;pointer-events:auto}
+#zoomRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-top:1px solid var(--line);flex-wrap:wrap}
+.zooms{display:flex;gap:5px}
+.zbtn{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--muted);border:1px solid var(--line2);border-radius:6px;padding:5px 9px}
+.zbtn.active{color:#0B0F14;background:var(--ink);border-color:var(--ink)}
+.zbtn.live{color:var(--ok);border-color:var(--ok)}
+.zbtn.live.active{background:var(--ok);color:#0B0F14}
+.hint{font-size:10.5px;color:var(--muted);text-align:right;line-height:1.5}
+
+/* 스탯/액션 */
+#stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.stat span{font-size:10px;color:var(--muted);letter-spacing:.08em;display:block}
+.stat b{font-family:var(--mono);font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.stat.hl{border-color:var(--alert)}
+#actions{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+#actions .btn{padding:11px 4px;font-size:12.5px}
+footer{margin-top:14px;font-size:11px;color:var(--muted);line-height:1.7}
+.linklike{text-decoration:underline;color:var(--noise);font-size:11px;padding:0}
+
+/* 시트 */
+#backdrop{position:fixed;inset:0;background:rgba(4,7,11,.62);opacity:0;pointer-events:none;transition:opacity .22s;z-index:40}
+#backdrop.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--panel);border-top:1px solid var(--line2);border-radius:14px 14px 0 0;transform:translateY(105%);transition:transform .24s cubic-bezier(.2,.8,.25,1);padding:10px 18px calc(18px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;max-height:88vh;overflow:auto;visibility:hidden}
+#sheet.on{transform:translateY(0);visibility:visible}
+#sheetHandle{width:38px;height:4px;border-radius:2px;background:var(--line2);margin:0 auto 12px}
+.sheetHead{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px}
+.sheetHead .dot{width:9px;height:9px}
+.peakBig{font-family:var(--mono);font-size:32px;font-weight:700;color:var(--c,var(--ink));margin:2px 0 8px}
+.peakBig small{font-size:13px;color:var(--muted);font-weight:500;margin-left:6px}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.kv span{color:var(--muted)} .kv b{font-family:var(--mono);font-weight:600;text-align:right}
+.kv em{font-style:normal;color:var(--muted);font-size:11px}
+.kgroup{font-size:10.5px;color:var(--muted);letter-spacing:.1em;margin:12px 0 2px}
+.sheetBtns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.sheetBtns .btn{flex:1}
+.sheetDesc{font-size:12.5px;color:var(--muted);margin-bottom:10px;line-height:1.6}
+.tinput{width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;color:var(--ink);padding:10px 12px;font-size:14px;font-family:var(--mono)}
+.plist{max-height:50vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.prow{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;text-align:left;background:var(--panel2)}
+.prow b{font-family:var(--mono);font-size:13.5px}
+.prow span{margin-left:auto;color:var(--muted);font-size:11.5px;text-align:right}
+.sheetEmpty{color:var(--muted);font-size:13px;padding:14px 0;text-align:center}
+.seg{display:flex;gap:6px;margin-bottom:10px}
+.seg button{flex:1;padding:8px 0;font-size:13px;font-weight:600;color:var(--muted);border:1px solid var(--line2);border-radius:8px;background:var(--panel2)}
+.seg button.active{color:#0B0F14;background:var(--ink);border-color:var(--ink)}
+.lrow{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel2);display:flex;flex-direction:column;gap:8px}
+.lrow.cur{border-color:var(--noise)}
+.linfo b{font-size:14px;display:block;word-break:break-all}
+.linfo span{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.lbtns{display:flex;gap:6px}
+.lbtns .btn{flex:1;padding:7px 4px;font-size:12.5px}
+.libFoot{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.libFoot .btn{flex:1;min-width:120px}
+.helpBox h3{font-size:13px;margin:13px 0 4px}
+.helpBox li{font-size:12.5px;color:var(--muted);line-height:1.65}
+.helpBox ul{padding-left:16px}
+
+/* 보고서 */
+#reportOverlay{position:fixed;inset:0;z-index:60;display:none;background:rgba(5,8,12,.72);overflow:auto}
+#reportOverlay.on{display:block}
+.reportBar{position:sticky;top:0;display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;background:rgba(11,15,20,.94);border-bottom:1px solid var(--line);z-index:2}
+#report{max-width:780px;margin:18px auto 60px;background:#fff;color:#14181d;padding:34px 30px;border-radius:6px}
+.rpt h1{font-size:21px;font-weight:700;letter-spacing:.02em}
+.rptHead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:2px solid #14181d;padding-bottom:10px;margin-bottom:14px;flex-wrap:wrap}
+.rmeta{font-size:11px;color:#5a6472}
+.rpt h2{font-size:12.5px;letter-spacing:.1em;margin:20px 0 8px;color:#2a323d}
+.rtable{width:100%;border-collapse:collapse;font-size:11.5px}
+.rtable th,.rtable td{border:1px solid #d5dbe3;padding:5px 7px;text-align:left;vertical-align:top}
+.rtable th{background:#eff2f6;font-weight:600}
+.rtable thead th{background:#e6ebf1}
+.rtable tr.sel td{background:#fffbea}
+.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px}
+figure{margin:14px 0;page-break-inside:avoid}
+figure img{width:100%;border:1px solid #d5dbe3}
+figcaption{font-size:11px;color:#5a6472;margin-top:4px}
+.rnote{font-size:10.5px;color:#5a6472;margin-top:16px;line-height:1.7}
+
+#toast{position:fixed;top:14px;left:50%;transform:translate(-50%,-16px);background:#1A2330;border:1px solid var(--line2);color:var(--ink);font-size:13px;padding:9px 16px;border-radius:9px;opacity:0;pointer-events:none;transition:all .25s;z-index:80;max-width:88vw}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+@page{margin:13mm}
+@media print{
+  body{background:#fff!important;background-image:none!important}
+  #app,#backdrop,#sheet,#toast{display:none!important}
+  #reportOverlay{position:static;display:block!important;background:#fff;overflow:visible}
+  .reportBar{display:none!important}
+  #report{max-width:none;margin:0;padding:0;background:#fff;color:#000;border-radius:0}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="appHeader">
+    <div class="brand">
+      <h1>PEAK SCOUT</h1>
+      <p>진동 · 소음 · 자장 현장 측정기</p>
+    </div>
+    <div class="hstat">
+      <span id="demoTag" class="demotag" style="display:none">DEMO</span>
+      <span id="rec" class="rec"><i></i><b id="clock">00:00</b></span>
+      <button id="btnLib" class="hbtn">기록함</button>
+      <button id="btnHelp" class="hbtn i" aria-label="사용 안내">i</button>
+    </div>
+  </header>
+
+  <div id="recBadge"><span>기록</span><b id="recName"></b><em id="recState"></em></div>
+
+  <section id="strip" aria-label="채널 계기판">
+    <button class="cell" data-ch="vib" style="--c:var(--vib)">
+      <span class="cname"><i class="dot"></i>진동 <em id="cu-vib"></em></span>
+      <span class="cval" id="cur-vib">--</span>
+      <span class="csub" id="sub-vib">&nbsp;</span>
+      <span class="chold"><i class="lamp" id="lamp-vib"></i>PEAK HOLD <b id="hold-vib">--</b></span>
+    </button>
+    <button class="cell" data-ch="noise" style="--c:var(--noise)">
+      <span class="cname"><i class="dot"></i>소음 <em id="cu-noise"></em></span>
+      <span class="cval" id="cur-noise">--</span>
+      <span class="csub" id="sub-noise">&nbsp;</span>
+      <span class="chold"><i class="lamp" id="lamp-noise"></i>PEAK HOLD <b id="hold-noise">--</b></span>
+    </button>
+    <button class="cell" data-ch="mag" style="--c:var(--mag)">
+      <span class="cname"><i class="dot"></i>자장 <em id="cu-mag"></em></span>
+      <span class="cval" id="cur-mag">--</span>
+      <span class="csub" id="sub-mag">&nbsp;</span>
+      <span class="chold"><i class="lamp" id="lamp-mag"></i>PEAK HOLD <b id="hold-mag">--</b></span>
+    </button>
+  </section>
+
+  <section id="controls">
+    <span class="lbl">측정 시간</span>
+    <div class="chips" id="durChips">
+      <button class="chip active" data-dur="30">30초</button>
+      <button class="chip" data-dur="60">1분</button>
+      <button class="chip" data-dur="120">2분</button>
+      <button class="chip" data-dur="240">4분</button>
+      <button class="chip" data-dur="300">5분</button>
+      <button class="chip" data-dur="600">10분</button>
+      <button class="chip" data-dur="1800">30분</button>
+      <button class="chip" data-dur="3600">60분</button>
+    </div>
+    <div class="row2">
+      <button id="btnStart" class="btn primary big">시작</button>
+      <button id="btnPause" class="btn big" style="display:none">일시정지</button>
+      <button id="btnResume" class="btn primary big" style="display:none">계속</button>
+      <button id="btnStop" class="btn danger big" style="display:none">종료</button>
+      <label class="sens">PEAK 민감도
+        <select id="sensSel" class="sel">
+          <option value="2.5">높음</option>
+          <option value="3" selected>보통</option>
+          <option value="4">낮음</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <nav id="tabs" aria-label="채널 선택">
+    <button class="tab active" data-ch="vib">진동</button>
+    <button class="tab" data-ch="noise">소음</button>
+    <button class="tab" data-ch="mag">자장</button>
+  </nav>
+
+  <section id="unitRow">
+    <label>측정량<select id="selMetric" class="sel"></select></label>
+    <label>단위<select id="selUnit" class="sel"></select></label>
+    <button id="btnCal" class="btn ghost" style="display:none">보정</button>
+  </section>
+  <p id="unitNote"></p>
+
+  <section id="graphWrap">
+    <canvas id="canvas"></canvas>
+    <div id="graphTitle"></div>
+    <div id="emptyState">
+      <b>측정 대기 중</b>
+      <span>측정 시간을 고르고 <b>시작</b>을 누르세요.<br><b>점선 세로 바 = PEAK 발생 지점</b>입니다. 바를 탭하면 그 순간의 상세 값이 열립니다.</span>
+      <div class="ebtns">
+        <button id="btnDemo" class="btn ghost sm">데모로 체험</button>
+        <button id="btnLib2" class="btn ghost sm">저장된 기록 열기</button>
+      </div>
+    </div>
+    <div id="zoomRow">
+      <div class="zooms">
+        <button class="zbtn active" data-z="0">전체</button>
+        <button class="zbtn" data-z="1">×2</button>
+        <button class="zbtn" data-z="2">×5</button>
+        <button class="zbtn" data-z="3">×10</button>
+        <button class="zbtn live" id="btnLive">LIVE</button>
+      </div>
+      <span class="hint">드래그: 시간 이동 · 탭: 상세<br>점선: PEAK · 흰 바: 구간 마커</span>
+    </div>
+  </section>
+
+  <section id="stats" aria-label="현재 지표 통계">
+    <div class="stat"><span>현재</span><b id="st-cur">--</b></div>
+    <div class="stat hl"><span>PEAK HOLD</span><b id="st-peak">--</b></div>
+    <div class="stat"><span>평균</span><b id="st-avg">--</b></div>
+  </section>
+
+  <section id="actions">
+    <button id="btnMarker" class="btn ghost" disabled>+ 마커</button>
+    <button id="btnPeakList" class="btn ghost" disabled>PEAK 목록</button>
+    <button id="btnSave" class="btn ghost" disabled>저장</button>
+    <button id="btnReport" class="btn ghost" disabled>보고서·PDF</button>
+  </section>
+
+  <footer>
+    센서는 브라우저 보안 정책상 <b>https</b>에서만 동작합니다. 기록은 이 기기의 브라우저 저장소에 보관되므로, 중요한 기록은 기록함에서 <b>백업 파일로 내보내기</b>를 해두세요. · <button id="btnHelp2" class="linklike">사용 안내</button>
+  </footer>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" style="display:none">
+<div id="backdrop"></div>
+<div id="sheet" role="dialog" aria-modal="true"><div id="sheetHandle"></div><div id="sheetContent"></div></div>
+
+<div id="reportOverlay">
+  <div class="reportBar">
+    <button id="btnCsv" class="btn">CSV 내보내기</button>
+    <button id="btnPrint" class="btn primary">PDF로 저장</button>
+    <button id="btnCloseReport" class="btn">닫기</button>
+  </div>
+  <div id="report"></div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+/* ═════════ 헬퍼 ═════════ */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2=n=>String(n).padStart(2,'0');
+function fmt(t){t=Math.max(0,t);const h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=Math.floor(t%60);return h>0?h+':'+p2(m)+':'+p2(s):p2(m)+':'+p2(s);}
+function fmt1(t){t=Math.max(0,t);const m=Math.floor(t/60),s=t-m*60;return p2(m)+':'+s.toFixed(1).padStart(4,'0');}
+function fmtDT(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());}
+function durLabel(s){return s<60?s+'초':s<3600?(s/60)+'분':(s/3600)+'시간';}
+function lowerBound(a,t){let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m]<t)lo=m+1;else hi=m;}return lo;}
+function upperBound(a,t){let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m]<=t)lo=m+1;else hi=m;}return lo;}
+function nearestIdx(t){if(!T.length)return -1;let i=lowerBound(T,t);if(i>=T.length)i=T.length-1;if(i>0&&Math.abs(T[i-1]-t)<Math.abs(T[i]-t))i--;return i;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const rnd=(t,s)=>mulberry32(Math.round(t*10)*7919+s)();
+function rrect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function download(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);}
+function stamp(d){d=d||new Date();return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'_'+p2(d.getHours())+p2(d.getMinutes());}
+
+/* ═════════ 채널 · 측정량 · 단위 정의 ═════════
+   저장 기준단위: 가속도 m/s², 속도 µm/s, 소음 dB SPL(추정, 보정 전), 자장 µT */
+const G=9.80665, DB_OFFSET=94;
+const SERIES={
+  vib_acc:{ch:'vib',  name:'진동 가속도 peak', minDelta:0.05, zero:true},
+  vib_rms:{ch:'vib',  name:'진동 가속도 rms',  minDelta:0.02, zero:true},
+  vib_vel:{ch:'vib',  name:'진동 속도 rms',    minDelta:30,   zero:true},
+  noise_z:{ch:'noise',name:'소음 Z rms',       minDelta:3},
+  noise_a:{ch:'noise',name:'소음 A가중 rms',   minDelta:3},
+  mag_tot:{ch:'mag',  name:'자장 Total',       minDelta:0.5},
+  mag_dc: {ch:'mag',  name:'자장 DC',          minDelta:0.5},
+  mag_ac: {ch:'mag',  name:'자장 AC rms',      minDelta:0.15, zero:true},
+};
+const SER_KEYS=Object.keys(SERIES);
+const accU=s=>[{id:'ms2',u:'m/s²'+s,k:1,d:3},{id:'gal',u:'gal'+s,k:100,d:1},{id:'g',u:'g'+s,k:1/G,d:4}];
+const magU=s=>[{id:'ut',u:'µT'+s,k:1,d:2},{id:'mg',u:'mG'+s,k:10,d:1},{id:'nt',u:'nT'+s,k:1000,d:0}];
+const CHS={
+  vib:{name:'진동',color:'#FFB300',rcolor:'#B58900',metrics:{
+    acc:{label:'가속도 peak',series:'vib_acc',units:accU(''),note:'0.1초 구간 최대 가속도(중력·저주파 제거 후 3축 합성).'},
+    rms:{label:'가속도 rms',series:'vib_rms',units:accU(' rms'),note:'3축 합성 가속도의 1초 이동 rms.'},
+    vel:{label:'속도 rms',series:'vib_vel',units:[{id:'ums',u:'µm/s rms',k:1,d:0},{id:'mms',u:'mm/s rms',k:0.001,d:3}],note:'가속도를 적분한 속도의 1초 rms(약 0.3 Hz 이상). 폰 센서 노이즈 때문에 수십 µm/s 이하는 신뢰하기 어렵습니다 — 상대 비교용으로 쓰세요.'},
+  }},
+  noise:{name:'소음',color:'#3BC7DE',rcolor:'#1D8CA3',metrics:{
+    z:{label:'Z (무가중) rms',series:'noise_z',units:[{id:'db',u:'dB rms',k:1,off:'cal',d:1},{id:'dbfs',u:'dBFS rms',k:1,off:-DB_OFFSET,d:1}],note:'마이크 RMS 레벨. dB rms는 추정 SPL(보정값 적용), dBFS는 마이크 디지털 풀스케일 기준.'},
+    a:{label:'A가중 rms',series:'noise_a',units:[{id:'db',u:'dB(A) rms',k:1,off:'cal',d:1},{id:'dbfs',u:'dBFS(A) rms',k:1,off:-DB_OFFSET,d:1}],note:'FFT 스펙트럼에 A가중(IEC 61672 곡선)을 적용한 rms 레벨.'},
+  }},
+  mag:{name:'자장',color:'#E9609F',rcolor:'#B03A72',metrics:{
+    tot:{label:'Total (전체)',series:'mag_tot',units:magU(''),note:'3축 지자기 벡터 크기 (지구 자장 약 25–65 µT 포함).'},
+    dc:{label:'DC 성분',series:'mag_dc',units:magU(''),note:'1초 이동평균 벡터 크기 = 정자장(DC) 성분.'},
+    ac:{label:'AC 성분 rms',series:'mag_ac',units:magU(' rms'),note:'DC 대비 변동분의 1초 rms. 폰 자력계는 최대 수십 Hz로 샘플링하므로 50/60 Hz 전원 자장은 정확히 측정되지 않습니다(저주파 변동·에일리어싱 성분).'},
+  }},
+};
+const CH_KEYS=['vib','noise','mag'];
+const view={vib:{m:'acc',u:'ms2'},noise:{m:'z',u:'db'},mag:{m:'tot',u:'ut'}};
+let calib=0;
+function V(ch){const c=CHS[ch],m=c.metrics[view[ch].m];let u=m.units.find(x=>x.id===view[ch].u);if(!u){u=m.units[0];view[ch].u=u.id;}return{c,m,u,series:m.series};}
+function conv(u,v){return v*u.k+(u.off==='cal'?calib:(u.off||0));}
+function fv(u,v){return conv(u,v).toFixed(u.d);}
+function unitForSeries(k){const ch=SERIES[k].ch,c=CHS[ch];
+  for(const mk in c.metrics){const m=c.metrics[mk];if(m.series===k){
+    const u=(view[ch].m===mk?m.units.find(x=>x.id===view[ch].u):null)||m.units.find(x=>x.id===view[ch].u)||m.units[0];return{m,u};}}}
+
+/* ═════════ 상태 ═════════ */
+let T=[];const S={};SER_KEYS.forEach(k=>S[k]=[]);
+let st={};function resetStats(){SER_KEYS.forEach(k=>st[k]={sum:0,min:Infinity,max:-Infinity,n:0});}resetStats();
+let peaks=[],peakId=1,lastPk={},markers=[],markerId=1;
+let state='idle',durSel=30,duration=30,tickN=0,elapsed=0;
+let startedClock=null,stoppedClock=null,sensitivity=3;
+let demoMode=false,sampleTimer=null;
+let currentRecordId=null,currentRecName='',dirty=false;
+let currentCh='vib',zoomIdx=0,follow=true,viewEnd=0,markerHits=[];
+const ZOOMS=[1,2,5,10];
+const els={};document.querySelectorAll('[id]').forEach(e=>els[e.id]=e);
+
+function pushSample(t,vals){
+  T.push(t);
+  for(const k of SER_KEYS){const v=Number.isFinite(vals[k])?vals[k]:0;S[k].push(v);const s=st[k];s.sum+=v;s.n++;if(v<s.min)s.min=v;if(v>s.max)s.max=v;}
+  dirty=true;
+}
+function recomputeStats(){resetStats();for(const k of SER_KEYS){const s=st[k];for(const v of S[k]){s.sum+=v;s.n++;if(v<s.min)s.min=v;if(v>s.max)s.max=v;}}}
+
+/* ═════════ PEAK 판정: 최근 20초 평균 + 민감도σ, 최소 변화폭, 4초 중복 제거 ═════════ */
+function detectPeak(k,n){
+  const a=S[k];if(n<40)return;
+  const from=Math.max(0,n-200);let s=0,s2=0,c=0,mx=-Infinity,mi=-1;
+  for(let i=from;i<n;i++){const v=a[i];s+=v;s2+=v*v;c++;if(v>mx){mx=v;mi=i;}}
+  const mean=s/c,sd=Math.sqrt(Math.max(0,s2/c-mean*mean));
+  if(mi>=0&&mx>mean+sensitivity*sd&&mx-mean>SERIES[k].minDelta){
+    const t=T[mi],prev=lastPk[k];
+    if(!prev||t-prev.t>4){const p={id:peakId++,k,ch:SERIES[k].ch,t,v:mx};peaks.push(p);lastPk[k]=p;}
+  }
+}
+function reanalyze(){peaks=[];peakId=1;lastPk={};for(let n=10;n<=T.length;n+=10)for(const k of SER_KEYS)detectPeak(k,n);}
+
+/* ═════════ 센서 ═════════ */
+const L={noise_z:0,noise_a:0,mag_tot:0,mag_dc:0,mag_ac:0};
+const mot={mean:[0,0,0],vel:[0,0,0],accMs:0,velMs:0,peak:0,cnt:0,lastT:0,init:false};
+const magS={mean:[0,0,0],acMs:0,lastT:0,init:false};
+let motionReady=false,micReady=false,magAvailable=false;
+let micStream=null,audioCtx=null,analyser=null,micBuf=null,freqBuf=null,aW=null,magSensor=null;
+
+function onMotion(e){
+  let x,y,z;const a=e.acceleration;
+  if(a&&a.x!=null){x=a.x;y=a.y;z=a.z;}
+  else if(e.accelerationIncludingGravity){const g=e.accelerationIncludingGravity;x=g.x||0;y=g.y||0;z=g.z||0;}
+  else return;
+  const now=performance.now();
+  let dt=e.interval>0?(e.interval>1?e.interval/1000:e.interval):(now-mot.lastT)/1000;
+  mot.lastT=now;dt=Math.min(Math.max(dt||0.016,0.002),0.1);
+  const ax=[x||0,y||0,z||0];
+  if(!mot.init){mot.mean=ax.slice();mot.init=true;}
+  const w=Math.min(1,dt/1.0),decay=Math.exp(-dt/0.5);
+  let a2=0,v2=0;
+  for(let i=0;i<3;i++){mot.mean[i]+=(ax[i]-mot.mean[i])*w;const hp=ax[i]-mot.mean[i];
+    mot.vel[i]=mot.vel[i]*decay+hp*dt;a2+=hp*hp;v2+=mot.vel[i]*mot.vel[i];}
+  const am=Math.sqrt(a2);if(am>mot.peak)mot.peak=am;mot.cnt++;
+  mot.accMs+=(a2-mot.accMs)*w;mot.velMs+=(v2-mot.velMs)*w;
+}
+async function initMotion(){
+  try{
+    if(typeof DeviceMotionEvent==='undefined'){motionReady=false;return;}
+    if(typeof DeviceMotionEvent.requestPermission==='function'){
+      const r=await DeviceMotionEvent.requestPermission();
+      if(r!=='granted'){motionReady=false;toast('진동 센서 권한이 거부되었습니다');return;}
+    }
+    window.removeEventListener('devicemotion',onMotion);
+    window.addEventListener('devicemotion',onMotion);motionReady=true;
+  }catch(err){motionReady=false;}
+}
+function aWeightDb(f){const f2=f*f;const ra=(12194**2*f2*f2)/((f2+20.6**2)*Math.sqrt((f2+107.7**2)*(f2+737.9**2))*(f2+12194**2));return 20*Math.log10(ra)+2.0;}
+async function initMic(){
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0.2;
+    src.connect(analyser);
+    micBuf=new Float32Array(analyser.fftSize);
+    const bins=analyser.frequencyBinCount;freqBuf=new Float32Array(bins);aW=new Float32Array(bins);
+    for(let i=1;i<bins;i++){const f=i*audioCtx.sampleRate/analyser.fftSize;aW[i]=Math.pow(10,aWeightDb(f)/10);}
+    micReady=true;
+  }catch(err){micReady=false;toast('마이크 권한 거부 — 소음 측정 비활성');}
+}
+function micLoop(){
+  if(!analyser)return;
+  analyser.getFloatTimeDomainData(micBuf);
+  let s=0;for(let i=0;i<micBuf.length;i++)s+=micBuf[i]*micBuf[i];
+  const rms=Math.max(Math.sqrt(s/micBuf.length),1e-7);
+  const z=20*Math.log10(rms)+DB_OFFSET;
+  analyser.getFloatFrequencyData(freqBuf);
+  let pz=0,pa=0;for(let i=1;i<freqBuf.length;i++){const d=freqBuf[i];if(!Number.isFinite(d))continue;const p=Math.pow(10,d/10);pz+=p;pa+=p*aW[i];}
+  L.noise_z=z;L.noise_a=z+(pz>0&&pa>0?10*Math.log10(pa/pz):0);
+}
+function initMag(){
+  try{
+    if(typeof Magnetometer==='undefined'){magAvailable=false;return;}
+    magSensor=new Magnetometer({frequency:60,referenceFrame:'device'});
+    magSensor.addEventListener('reading',()=>{
+      const v=[magSensor.x||0,magSensor.y||0,magSensor.z||0],now=performance.now();
+      let dt=magS.lastT?(now-magS.lastT)/1000:0.02;magS.lastT=now;dt=Math.min(Math.max(dt,0.005),0.2);
+      if(!magS.init){magS.mean=v.slice();magS.init=true;}
+      const w=Math.min(1,dt/1.0);let d2=0;
+      for(let i=0;i<3;i++){magS.mean[i]+=(v[i]-magS.mean[i])*w;const d=v[i]-magS.mean[i];d2+=d*d;}
+      magS.acMs+=(d2-magS.acMs)*w;
+      L.mag_tot=Math.hypot(v[0],v[1],v[2]);L.mag_dc=Math.hypot(magS.mean[0],magS.mean[1],magS.mean[2]);L.mag_ac=Math.sqrt(magS.acMs);
+    });
+    magSensor.addEventListener('error',e=>{magAvailable=false;toast('자장 센서 사용 불가: '+(e.error&&e.error.name||'오류'));});
+    magSensor.start();magAvailable=true;
+  }catch(err){magAvailable=false;}
+}
+function readLive(){
+  const acc=mot.cnt?mot.peak:0;mot.peak=0;mot.cnt=0;
+  return{vib_acc:acc,vib_rms:Math.sqrt(mot.accMs),vib_vel:Math.sqrt(mot.velMs)*1e6,
+    noise_z:L.noise_z,noise_a:L.noise_a,mag_tot:L.mag_tot,mag_dc:L.mag_dc,mag_ac:L.mag_ac};
+}
+
+/* ═════════ 데모 신호: STAGE 이동 진동 + 충격 + 모터부 자장 이상 ═════════ */
+let dm;function demoReset(){dm={accMs:0.002,dc:48,acMs:0.03};}
+function demoStep(t){
+  const r1=rnd(t,3),r2=rnd(t,5),r3=rnd(t,11),ph=t%20;
+  let acc=0.04+r1*0.03;
+  if(ph>7&&ph<9)acc+=r1*0.9*(1-Math.abs(ph-8));
+  if(ph>14&&ph<14.7)acc+=1.7+r1*0.9;
+  dm.accMs+=(acc*acc*0.5-dm.accMs)*0.1;
+  const accRms=Math.sqrt(dm.accMs),vel=accRms/(2*Math.PI*12)*1e6*(0.9+0.2*r2);
+  let z=37+r2*4;
+  if(ph>7&&ph<9)z+=7*(1-Math.abs(ph-8));
+  const imp=ph>14.1&&ph<14.8;if(imp)z+=15+r1*3;
+  const a=z-4.5+(imp?3:0)+r1*0.6;
+  let dcT=48+Math.sin(t/3)*1.4,acA=0.12;
+  if(ph>6.5&&ph<10){dcT+=9+5*Math.sin((ph-6.5)*1.8);acA=2.2;}
+  const inst=dcT+acA*(2*r3-1)*1.41;
+  dm.dc+=(inst-dm.dc)*0.1;const dv=inst-dm.dc;dm.acMs+=(dv*dv-dm.acMs)*0.1;
+  return{vib_acc:acc,vib_rms:accRms,vib_vel:vel,noise_z:z,noise_a:a,mag_tot:Math.abs(inst),mag_dc:dm.dc,mag_ac:Math.sqrt(dm.acMs)};
+}
+function seedDemo(){
+  for(let i=1;i<=450;i++){pushSample(i/10,demoStep(i/10));}
+  tickN=450;elapsed=45;reanalyze();
+  markers.push({id:markerId++,t:20,label:'STAGE A 진입'});
+  startedClock=new Date(Date.now()-45000);
+}
+
+/* ═════════ 측정 루프 ═════════ */
+function tick(){
+  tickN++;elapsed=tickN/10;
+  let vals;
+  if(demoMode)vals=demoStep(elapsed);else{if(analyser)micLoop();vals=readLive();}
+  pushSample(elapsed,vals);
+  if(tickN%10===0)for(const k of SER_KEYS)detectPeak(k,T.length);
+  if(duration&&elapsed>=duration-1e-9){stop(true);return;}
+  updateHUD();
+}
+async function start(){
+  if(state==='running')return;
+  if(!demoMode){
+    await initMotion();await initMic();initMag();
+    if(!motionReady&&!micReady&&!magAvailable){toast('사용 가능한 센서가 없습니다 — https 접속인지 확인하세요');return;}
+  }
+  if(!startedClock)startedClock=new Date();
+  state='running';sampleTimer=setInterval(tick,100);
+  updateControls();updateHUD();
+}
+function pause(){if(state!=='running')return;clearInterval(sampleTimer);sampleTimer=null;state='paused';updateControls();updateHUD();toast('일시정지 — 계속을 누르면 이어서 측정합니다');}
+function resume(){if(state!=='paused')return;state='running';sampleTimer=setInterval(tick,100);updateControls();toast('측정 계속');}
+function releaseSensors(){
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+  if(audioCtx){audioCtx.close().catch(()=>{});audioCtx=null;analyser=null;}
+  if(magSensor){try{magSensor.stop();}catch(e){}magSensor=null;}
+  window.removeEventListener('devicemotion',onMotion);
+}
+function stop(auto){
+  if(state!=='running'&&state!=='paused')return;
+  if(sampleTimer){clearInterval(sampleTimer);sampleTimer=null;}
+  state='stopped';stoppedClock=new Date();releaseSensors();
+  updateControls();updateHUD();
+  toast(auto?'설정 시간 도달 — 자동 종료':'측정 종료');
+  if(T.length)setTimeout(()=>openSaveSheet(true),250);
+}
+function resetData(){
+  T=[];SER_KEYS.forEach(k=>S[k]=[]);resetStats();
+  peaks=[];peakId=1;lastPk={};markers=[];markerId=1;tickN=0;elapsed=0;
+  startedClock=null;stoppedClock=null;currentRecordId=null;currentRecName='';dirty=false;
+  demoMode=false;els.report.innerHTML='';
+  mot.init=false;mot.accMs=0;mot.velMs=0;mot.vel=[0,0,0];magS.init=false;magS.acMs=0;
+  zoomIdx=0;follow=true;setZoomUI();
+}
+
+/* ═════════ 그래프 ═════════ */
+function totalSpan(){return Math.max(elapsed,state==='idle'?60:1);}
+function viewSpan(){return Math.max(2,totalSpan()/ZOOMS[zoomIdx]);}
+function renderTrace(ctx,V_,t0,t1,X,Y,plotW){
+  const a=lowerBound(T,t0),b=upperBound(T,t1),count=b-a;if(count<1)return;
+  ctx.beginPath();
+  if(count>plotW*1.5){
+    for(let px=0;px<plotW;px++){
+      const tA=t0+px/plotW*(t1-t0),tB=t0+(px+1)/plotW*(t1-t0);
+      const i0=lowerBound(T,tA),i1=lowerBound(T,tB);if(i1<=i0)continue;
+      let mn=Infinity,mx=-Infinity;for(let i=i0;i<i1;i++){const v=V_[i];if(v<mn)mn=v;if(v>mx)mx=v;}
+      const x=X(tA);ctx.moveTo(x,Y(mn));ctx.lineTo(x,Y(mx)+0.01);
+    }
+  }else{for(let i=a;i<b;i++){const x=X(T[i]),y=Y(V_[i]);if(i===a)ctx.moveTo(x,y);else ctx.lineTo(x,y);}}
+  ctx.stroke();
+}
+function yRange(k,arr,start,end){
+  let lo=Infinity,hi=-Infinity;const i0=lowerBound(T,start),i1=upperBound(T,end);
+  for(let i=i0;i<i1;i++){const v=arr[i];if(v<lo)lo=v;if(v>hi)hi=v;}
+  if(!isFinite(lo)){lo=0;hi=1;}
+  if(SERIES[k].zero)lo=Math.min(lo,0);
+  const eps=SERIES[k].minDelta*2;
+  if(hi-lo<eps){const mid=(hi+lo)/2;lo=Math.min(lo,mid-eps/2);hi=Math.max(hi,mid+eps/2);}
+  const pad=(hi-lo)*0.12;return[lo-pad,hi+pad];
+}
+function draw(){
+  requestAnimationFrame(draw);
+  const cv=els.canvas,cssW=cv.clientWidth,cssH=cv.clientHeight;if(!cssW||!cssH)return;
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(cssW*dpr)||cv.height!==Math.round(cssH*dpr)){cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);}
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,cssH);
+  const vw=V(currentCh),k=vw.series,arr=S[k],u=vw.u,col=vw.c.color;
+  const padL=48,padR=12,padT=30,padB=24,plotW=cssW-padL-padR,plotH=cssH-padT-padB;
+  const span=viewSpan(),total=totalSpan();
+  if(follow)viewEnd=Math.max(elapsed,span);
+  let end=Math.min(viewEnd,total+span*0.2),start=end-span;if(start<0){start=0;end=span;}
+  const X=t=>padL+(t-start)/span*plotW;
+  let[lo,hi]=yRange(k,arr,start,end);
+  for(const p of peaks)if(p.k===k&&p.t>=start&&p.t<=end&&p.v>hi)hi=p.v*1.05;
+  const Y=v=>padT+(1-(v-lo)/(hi-lo))*plotH;
+  ctx.strokeStyle='#1D2735';ctx.lineWidth=1;ctx.fillStyle='#8C98A8';ctx.font='10px "IBM Plex Mono",monospace';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,y=Y(v);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(cssW-padR,y);ctx.stroke();ctx.fillText(fv(u,v),4,y);}
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let i=0;i<=4;i++){const t=start+span*i/4;ctx.fillText(fmt(t),X(t),cssH-padB+7);}
+  if(SERIES[k].zero&&lo<0&&hi>0){ctx.save();ctx.strokeStyle='rgba(233,237,243,.25)';ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(padL,Y(0));ctx.lineTo(cssW-padR,Y(0));ctx.stroke();ctx.restore();}
+  ctx.strokeStyle=col;ctx.lineWidth=1.6;ctx.lineJoin='round';ctx.lineCap='round';
+  renderTrace(ctx,arr,start,end,X,Y,plotW);
+  if((state==='running'||state==='paused')&&arr.length&&elapsed>=start&&elapsed<=end){
+    const x=X(elapsed);ctx.save();ctx.strokeStyle='rgba(233,237,243,.22)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,cssH-padB);ctx.stroke();ctx.restore();
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,Y(arr[arr.length-1]),3.5,0,Math.PI*2);ctx.fill();
+  }
+  markerHits=[];
+  const vis=peaks.filter(p=>p.k===k&&p.t>=start&&p.t<=end);
+  for(const p of vis){
+    const x=X(p.t);ctx.save();ctx.strokeStyle=col;ctx.globalAlpha=.85;ctx.setLineDash([5,4]);ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,cssH-padB);ctx.stroke();ctx.restore();
+    ctx.fillStyle='#FF4B3E';ctx.beginPath();ctx.arc(x,padT+6,4,0,Math.PI*2);ctx.fill();
+    if(vis.length<=6){ctx.fillStyle=col;ctx.font='10px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(fv(u,p.v),x,padT-4);}
+    markerHits.push({x,type:'peak',ref:p});
+  }
+  for(const m of markers){
+    if(m.t<start||m.t>end)continue;const x=X(m.t);
+    ctx.save();ctx.strokeStyle='rgba(233,237,243,.75)';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(x,padT+12);ctx.lineTo(x,cssH-padB);ctx.stroke();
+    ctx.font='10px "IBM Plex Mono",monospace';const w=ctx.measureText(m.label).width+10;
+    ctx.fillStyle='#0B0F14';ctx.strokeStyle='rgba(233,237,243,.5)';ctx.lineWidth=1;rrect(ctx,x-w/2,padT+12,w,14,3);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#E9EDF3';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.label,x,padT+19);ctx.restore();
+    markerHits.push({x,type:'marker',ref:m});
+  }
+}
+let dragging=false,dragMoved=0,dragStartX=0,dragStartEnd=0;
+els.canvas.addEventListener('pointerdown',e=>{if(state==='idle')return;dragging=true;dragMoved=0;dragStartX=e.clientX;dragStartEnd=viewEnd;try{els.canvas.setPointerCapture(e.pointerId);}catch(err){}});
+els.canvas.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-dragStartX;dragMoved=Math.max(dragMoved,Math.abs(dx));
+  if(dragMoved>6){follow=false;setZoomUI();const span=viewSpan(),plotW=els.canvas.clientWidth-60;viewEnd=dragStartEnd-dx/plotW*span;clampView();}});
+els.canvas.addEventListener('pointerup',e=>{dragging=false;if(dragMoved<=6)tapAt(e);});
+els.canvas.addEventListener('pointercancel',()=>{dragging=false;});
+function clampView(){const span=viewSpan();viewEnd=Math.min(Math.max(viewEnd,span*0.5),totalSpan()+span*0.2);}
+function tapAt(e){const r=els.canvas.getBoundingClientRect(),x=e.clientX-r.left;let best=null,bd=26;
+  for(const h of markerHits){const d=Math.abs(h.x-x);if(d<bd){bd=d;best=h;}}
+  if(!best)return;if(best.type==='peak')openPeakDetail(best.ref);else openMarkerDetail(best.ref);}
+
+/* ═════════ 시트 ═════════ */
+function openSheet(html){els.sheetContent.innerHTML=html;els.sheet.classList.add('on');els.backdrop.classList.add('on');els.sheet.scrollTop=0;}
+function closeSheet(){els.sheet.classList.remove('on');els.backdrop.classList.remove('on');}
+els.backdrop.addEventListener('click',closeSheet);
+function clockAt(t){return startedClock?fmtDT(new Date(startedClock.getTime()+t*1000)).slice(11):'';}
+function allValuesAt(t){
+  const i=nearestIdx(t);if(i<0)return'';
+  return CH_KEYS.map(ch=>'<div class="kgroup">'+CHS[ch].name+'</div>'+Object.values(CHS[ch].metrics).map(m=>{
+    const {u}=unitForSeries(m.series);return'<div class="kv"><span>'+m.label+'</span><b>'+fv(u,S[m.series][i])+' '+u.u+'</b></div>';}).join('')).join('');
+}
+function openPeakDetail(p){
+  const c=CHS[p.ch],{m,u}=unitForSeries(p.k);
+  const a=lowerBound(T,p.t-2),b=upperBound(T,p.t+2);let s=0,mx=-Infinity;for(let i=a;i<b;i++){s+=S[p.k][i];if(S[p.k][i]>mx)mx=S[p.k][i];}
+  openSheet('<div class="sheetHead" style="--c:'+c.color+'"><span class="dot"></span><b>'+c.name+' · '+m.label+' PEAK</b></div>'
+    +'<div class="peakBig" style="--c:'+c.color+'">'+fv(u,p.v)+'<small>'+u.u+'</small></div>'
+    +'<div class="kv"><span>발생 시각</span><b>'+fmt1(p.t)+' <em>('+clockAt(p.t)+')</em></b></div>'
+    +'<div class="kv"><span>전후 2초 최대 / 평균</span><b>'+fv(u,mx)+' / '+fv(u,b>a?s/(b-a):0)+'</b></div>'
+    +'<div class="kgroup" style="margin-top:14px;color:var(--ink)">그 순간의 전체 측정값</div>'+allValuesAt(p.t)
+    +'<div class="sheetBtns"><button class="btn primary" data-action="goto" data-t="'+p.t+'" data-ch="'+p.ch+'">그래프에서 확대</button><button class="btn" data-action="close">닫기</button></div>');
+}
+function openMarkerDetail(m){
+  openSheet('<div class="sheetHead"><b>구간 마커 — '+esc(m.label)+'</b></div>'
+    +'<div class="kv"><span>시각</span><b>'+fmt1(m.t)+' <em>('+clockAt(m.t)+')</em></b></div>'+allValuesAt(m.t)
+    +'<div class="sheetBtns"><button class="btn primary" data-action="goto" data-t="'+m.t+'">그래프에서 확대</button><button class="btn" data-action="delMarker" data-id="'+m.id+'">마커 삭제</button><button class="btn" data-action="close">닫기</button></div>');
+}
+function currentSeriesSet(){return new Set(CH_KEYS.map(ch=>V(ch).series));}
+function openPeakList(){
+  const set=currentSeriesSet(),list=peaks.filter(p=>set.has(p.k)).sort((a,b)=>b.t-a.t);
+  const rows=list.map(p=>{const c=CHS[p.ch],{m,u}=unitForSeries(p.k);
+    return'<button class="prow" data-action="goto" data-t="'+p.t+'" data-ch="'+p.ch+'" style="--c:'+c.color+'"><i class="dot"></i><b>'+fv(u,p.v)+' '+u.u+'</b><span>'+c.name+' '+m.label+'<br>'+fmt1(p.t)+'</span></button>';}).join('')
+    ||'<p class="sheetEmpty">현재 선택한 지표에 기록된 PEAK가 없습니다.</p>';
+  openSheet('<div class="sheetHead"><b>PEAK 기록 '+list.length+'건</b></div><p class="sheetDesc">각 채널에서 지금 선택한 측정량 기준입니다(전체 지표 합계 '+peaks.length+'건).</p><div class="plist">'+rows+'</div><div class="sheetBtns"><button class="btn" data-action="close">닫기</button></div>');
+}
+function openSaveSheet(afterStop){
+  const def=currentRecName||('측정 '+fmtDT(startedClock||new Date()).slice(0,16));
+  const set=currentSeriesSet(),pc=peaks.filter(p=>set.has(p.k)).length;
+  openSheet('<div class="sheetHead"><b>'+(afterStop?'측정 종료 — 기록 저장':(currentRecordId?'기록 업데이트':'기록 저장'))+'</b></div>'
+    +'<p class="sheetDesc">실측 '+fmt(elapsed)+' · PEAK '+pc+'건 · 마커 '+markers.length+'개. 이 기기의 브라우저에 저장됩니다.'+(currentRecordId?' 같은 기록을 덮어씁니다.':'')+'</p>'
+    +'<input id="saveName" class="tinput" type="text" maxlength="40" value="'+esc(def)+'">'
+    +'<div class="sheetBtns"><button class="btn primary" data-action="doSave">저장</button>'
+    +(afterStop?'<button class="btn" data-action="openReport">보고서 보기</button>':'')
+    +'<button class="btn" data-action="close">'+(afterStop?'나중에':'취소')+'</button></div>');
+}
+function openCalSheet(){
+  openSheet('<div class="sheetHead"><b>소음 보정값</b></div><p class="sheetDesc">폰 마이크는 기기마다 감도가 다릅니다. 기준 소음계와 같은 위치에서 비교한 뒤 그 차이를 입력하세요(예: 소음계 52.0, 앱 48.5 → +3.5). dB rms·dB(A) rms 표시에 적용되고, 기록에 함께 저장됩니다.</p>'
+    +'<input id="calIn" class="tinput" type="number" step="0.1" value="'+calib.toFixed(1)+'">'
+    +'<div class="sheetBtns"><button class="btn primary" data-action="setCal">적용</button><button class="btn" data-action="resetCal">0으로</button><button class="btn" data-action="close">취소</button></div>');
+}
+function openHelp(){
+  openSheet('<div class="sheetHead"><b>사용 안내</b></div><div class="helpBox">'
+    +'<h3>시작 전</h3><ul><li>센서는 <b>https</b>에서만 허용됩니다. 사내 웹서버나 GitHub Pages 등에 올려서 여세요.</li><li>측정 중에는 화면을 켜두세요. 백그라운드로 가면 브라우저가 샘플링을 멈출 수 있습니다.</li></ul>'
+    +'<h3>단위 · 측정량</h3><ul>'
+    +'<li><b>진동</b> — 가속도 peak / 가속도 rms (m/s², gal, g), 속도 rms (<b>µm/s rms</b>, mm/s rms). 속도는 가속도를 적분해 구하므로 폰 센서 노이즈 바닥(대략 수십~수백 µm/s)보다 작은 값은 신뢰하기 어렵습니다. VC 등급 같은 정밀 진동 기준 판정에는 전용 진동계를 쓰세요.</li>'
+    +'<li><b>소음</b> — Z(무가중) / A가중, <b>dB rms</b>(추정 SPL) 또는 dBFS rms. 기준 소음계와 비교한 <b>보정값</b>을 넣으면 정확도가 올라갑니다.</li>'
+    +'<li><b>자장</b> — Total / <b>DC 성분</b>(1초 평균) / <b>AC 성분 rms</b>(평균 대비 변동), 단위 µT · <b>mG</b> · <b>nT</b> (1 µT = 10 mG = 1000 nT). 폰 자력계는 해상도가 0.1–1 µT 정도라 nT는 표시 단위일 뿐 정밀도가 아닙니다. 50/60 Hz 전원 자장은 샘플링 한계로 정확히 측정되지 않습니다. Android Chrome만 지원하고, iOS Safari는 자장 센서를 제공하지 않습니다.</li></ul>'
+    +'<h3>PEAK 읽기</h3><ul><li><b>점선 세로 바</b> = PEAK. 탭하면 그 순간의 전체 지표 값과 전후 2초 통계가 열립니다.</li><li>판정 기준: 최근 20초 평균 + 민감도×표준편차. 측정이 끝난 뒤 민감도를 바꾸면 전체 기록을 다시 분석합니다.</li><li><b>+ 마커</b>로 STAGE 위치를 기록해 두면 보고서에 함께 나옵니다.</li></ul>'
+    +'<h3>저장 · 삭제 · 복원</h3><ul><li>측정이 끝나면 저장 창이 뜹니다. 저장한 기록은 <b>기록함</b>에서 불러와 그래프·PEAK·보고서를 다시 볼 수 있습니다.</li><li>삭제한 기록은 <b>휴지통</b>으로 가서 30일 안에 <b>복원</b>할 수 있습니다.</li><li>브라우저 데이터를 지우면 기록도 사라집니다. 기기를 옮기거나 보관할 기록은 <b>백업 파일(JSON)</b>로 내보내고, 다른 기기에서 가져오기로 복원하세요.</li></ul>'
+    +'</div><div class="sheetBtns"><button class="btn primary" data-action="demo">데모로 체험</button><button class="btn" data-action="close">닫기</button></div>');
+}
+
+/* ═════════ IndexedDB 저장소 ═════════ */
+let _db=null;
+function dbOpen(){if(_db)return Promise.resolve(_db);return new Promise((res,rej)=>{
+  if(!window.indexedDB){rej(new Error('IndexedDB 미지원'));return;}
+  const r=indexedDB.open('peakscout',1);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('meta'))d.createObjectStore('meta',{keyPath:'id'});if(!d.objectStoreNames.contains('data'))d.createObjectStore('data',{keyPath:'id'});};
+  r.onsuccess=()=>{_db=r.result;res(_db);};r.onerror=()=>rej(r.error);});}
+const rq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+async function dbPut(store,obj){const d=await dbOpen();return rq(d.transaction(store,'readwrite').objectStore(store).put(obj));}
+async function dbGet(store,id){const d=await dbOpen();return rq(d.transaction(store).objectStore(store).get(id));}
+async function dbAll(store){const d=await dbOpen();return rq(d.transaction(store).objectStore(store).getAll());}
+async function dbDel(store,id){const d=await dbOpen();return rq(d.transaction(store,'readwrite').objectStore(store).delete(id));}
+const newId=()=>'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+function snapshot(id,name){
+  const Sf={};SER_KEYS.forEach(k=>Sf[k]=Float32Array.from(S[k]));
+  const set=currentSeriesSet();
+  const meta={id,name,createdAt:Date.now(),startedAt:startedClock?startedClock.getTime():null,stoppedAt:(stoppedClock||new Date()).getTime(),
+    elapsed,duration,demo:demoMode,peaks:peaks.filter(p=>set.has(p.k)).length,peaksAll:peaks.length,markers:markers.length,samples:T.length,deleted:false,deletedAt:null};
+  const data={id,T:Float32Array.from(T),S:Sf,peaks:peaks.map(p=>({k:p.k,t:p.t,v:p.v})),markers:markers.map(m=>({t:m.t,label:m.label})),sensitivity,calib,view:JSON.parse(JSON.stringify(view))};
+  return{meta,data};
+}
+async function saveCurrent(name){
+  if(!T.length){toast('저장할 측정 데이터가 없습니다');return;}
+  try{
+    let id=currentRecordId,createdAt=null;
+    if(id){const old=await dbGet('meta',id);if(old&&!old.deleted)createdAt=old.createdAt;else id=null;}
+    if(!id)id=newId();
+    const {meta,data}=snapshot(id,name);if(createdAt)meta.createdAt=createdAt;meta.updatedAt=Date.now();
+    await dbPut('data',data);await dbPut('meta',meta);
+    currentRecordId=id;currentRecName=name;dirty=false;
+    if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+    updateHUD();toast('저장됨: '+name);
+  }catch(err){toast('저장 실패: '+(err&&err.message||err));}
+}
+async function loadRecord(id){
+  if(state==='running'||state==='paused'){toast('측정 중에는 불러올 수 없습니다 — 먼저 종료하세요');return;}
+  if(dirty&&T.length&&!confirm('저장하지 않은 현재 측정이 있습니다. 불러오면 사라집니다. 계속할까요?'))return;
+  try{
+    const meta=await dbGet('meta',id),d=await dbGet('data',id);
+    if(!meta||!d){toast('기록을 읽을 수 없습니다');return;}
+    resetData();
+    T=Array.from(d.T,x=>Math.round(x*10)/10);
+    SER_KEYS.forEach(k=>{S[k]=d.S&&d.S[k]?Array.from(d.S[k]):new Array(T.length).fill(0);});
+    recomputeStats();
+    peaks=(d.peaks||[]).map((p,i)=>({id:i+1,k:p.k,ch:SERIES[p.k]?SERIES[p.k].ch:'vib',t:Math.round(p.t*10)/10,v:p.v})).filter(p=>SERIES[p.k]);
+    peakId=peaks.length+1;lastPk={};peaks.forEach(p=>{if(!lastPk[p.k]||lastPk[p.k].t<p.t)lastPk[p.k]=p;});
+    markers=(d.markers||[]).map((m,i)=>({id:i+1,t:m.t,label:m.label}));markerId=markers.length+1;
+    tickN=T.length;elapsed=T.length?T[T.length-1]:0;
+    startedClock=meta.startedAt?new Date(meta.startedAt):null;stoppedClock=meta.stoppedAt?new Date(meta.stoppedAt):null;
+    duration=meta.duration;demoMode=!!meta.demo;sensitivity=d.sensitivity||3;els.sensSel.value=String(sensitivity);calib=d.calib||0;
+    if(d.view)CH_KEYS.forEach(ch=>{if(d.view[ch]&&CHS[ch].metrics[d.view[ch].m])view[ch]={m:d.view[ch].m,u:d.view[ch].u};});
+    currentRecordId=id;currentRecName=meta.name;dirty=false;state='stopped';zoomIdx=0;follow=true;
+    setZoomUI();fillUnitRow();updateControls();updateHUD();closeSheet();toast('불러옴: '+meta.name);
+  }catch(err){toast('불러오기 실패: '+(err&&err.message||err));}
+}
+async function setDeleted(id,del){const m=await dbGet('meta',id);if(!m)return;m.deleted=del;m.deletedAt=del?Date.now():null;await dbPut('meta',m);
+  if(del&&id===currentRecordId){currentRecordId=null;dirty=true;updateHUD();}}
+async function purge(id){await dbDel('data',id);await dbDel('meta',id);}
+
+let libTab='saved';
+async function openLibrary(tab){
+  if(tab)libTab=tab;
+  let metas;
+  try{metas=await dbAll('meta');}catch(err){openSheet('<div class="sheetHead"><b>기록함</b></div><p class="sheetEmpty">이 브라우저에서 저장소를 열 수 없습니다(사생활 보호 모드 등): '+esc(err.message||err)+'</p><div class="sheetBtns"><button class="btn" data-action="close">닫기</button></div>');return;}
+  const cut=Date.now()-30*864e5;
+  for(const m of metas.filter(m=>m.deleted&&m.deletedAt&&m.deletedAt<cut)){await purge(m.id);}
+  metas=metas.filter(m=>!(m.deleted&&m.deletedAt&&m.deletedAt<cut)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const saved=metas.filter(m=>!m.deleted),trash=metas.filter(m=>m.deleted);
+  const list=libTab==='saved'?saved:trash;
+  const rows=list.map(m=>{
+    const info=fmtDT(new Date(m.createdAt)).slice(0,16)+' · 실측 '+fmt(m.elapsed||0)+' · PEAK '+(m.peaks||0)+' · 마커 '+(m.markers||0)+(m.demo?' · DEMO':'');
+    const extra=m.deleted?'<br>삭제 '+fmtDT(new Date(m.deletedAt)).slice(0,16)+' · '+Math.max(0,Math.ceil((m.deletedAt+30*864e5-Date.now())/864e5))+'일 후 자동 삭제':'';
+    const btns=m.deleted
+      ?'<button class="btn primary" data-action="restore" data-id="'+m.id+'">복원</button><button class="btn" data-action="purge" data-id="'+m.id+'">영구 삭제</button>'
+      :'<button class="btn primary" data-action="load" data-id="'+m.id+'">불러오기</button><button class="btn" data-action="exportOne" data-id="'+m.id+'">내보내기</button><button class="btn" data-action="trash" data-id="'+m.id+'">삭제</button>';
+    return'<div class="lrow'+(m.id===currentRecordId?' cur':'')+'"><div class="linfo"><b>'+esc(m.name)+(m.id===currentRecordId?' <small style="color:var(--noise);font-weight:500">· 열려 있음</small>':'')+'</b><span>'+info+extra+'</span></div><div class="lbtns">'+btns+'</div></div>';
+  }).join('')||'<p class="sheetEmpty">'+(libTab==='saved'?'저장된 기록이 없습니다. 측정을 마치고 저장하면 여기에 쌓입니다.':'휴지통이 비어 있습니다.')+'</p>';
+  openSheet('<div class="sheetHead"><b>기록함</b></div>'
+    +'<div class="seg"><button class="'+(libTab==='saved'?'active':'')+'" data-action="libtab" data-tab="saved">저장된 기록 '+saved.length+'</button><button class="'+(libTab==='trash'?'active':'')+'" data-action="libtab" data-tab="trash">휴지통 '+trash.length+'</button></div>'
+    +'<div class="plist" style="max-height:52vh">'+rows+'</div>'
+    +'<div class="libFoot">'
+    +(libTab==='saved'
+      ?'<button class="btn sm" data-action="exportAll"'+(saved.length?'':' disabled')+'>전체 백업 내보내기</button><button class="btn sm" data-action="importFile">백업 가져오기</button>'
+      :'<button class="btn sm" data-action="restoreAll"'+(trash.length?'':' disabled')+'>모두 복원</button><button class="btn sm danger" data-action="emptyTrash"'+(trash.length?'':' disabled')+'>휴지통 비우기</button>')
+    +'<button class="btn sm" data-action="close">닫기</button></div>');
+}
+const r6=v=>Number(v.toPrecision(6));
+async function exportRecords(ids,fname){
+  const out={format:'peakscout-v2',exportedAt:new Date().toISOString(),records:[]};
+  for(const id of ids){const m=await dbGet('meta',id),d=await dbGet('data',id);if(!m||!d)continue;
+    const Sx={};SER_KEYS.forEach(k=>{if(d.S[k])Sx[k]=Array.from(d.S[k],r6);});
+    out.records.push({meta:m,data:{...d,T:Array.from(d.T,x=>Math.round(x*10)/10),S:Sx}});}
+  download(fname,new Blob([JSON.stringify(out)],{type:'application/json'}));
+  toast(out.records.length+'건 내보냄');
+}
+async function importBackup(file){
+  try{
+    const obj=JSON.parse(await file.text());
+    if(!obj||!Array.isArray(obj.records))throw new Error('PEAK SCOUT 백업 파일이 아닙니다');
+    let n=0;
+    for(const r of obj.records){
+      if(!r.meta||!r.data||!r.data.T)continue;
+      let id=r.meta.id||newId();if(await dbGet('meta',id))id=newId();
+      const Sf={};SER_KEYS.forEach(k=>{if(r.data.S&&r.data.S[k])Sf[k]=Float32Array.from(r.data.S[k]);});
+      await dbPut('data',{...r.data,id,T:Float32Array.from(r.data.T),S:Sf});
+      await dbPut('meta',{...r.meta,id,deleted:false,deletedAt:null});n++;
+    }
+    toast(n+'건 가져옴');libTab='saved';openLibrary();
+  }catch(err){toast('가져오기 실패: '+(err&&err.message||err));}
+}
+els.importFile.addEventListener('change',()=>{const f=els.importFile.files[0];if(f)importBackup(f);els.importFile.value='';});
+
+/* 시트 버튼 처리 */
+els.sheetContent.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-action]');if(!b||b.disabled)return;
+  const a=b.dataset.action,id=b.dataset.id;
+  try{
+    if(a==='close')closeSheet();
+    else if(a==='goto'){const t=parseFloat(b.dataset.t);if(b.dataset.ch)setChannel(b.dataset.ch);if(zoomIdx===0)zoomIdx=2;follow=false;setZoomUI();const span=viewSpan();viewEnd=Math.min(Math.max(t+span*0.5,span),totalSpan()+span*0.2);closeSheet();}
+    else if(a==='addMarker'){const i=$('mkLabel'),label=(i&&i.value.trim())||('M'+(markers.length+1));markers.push({id:markerId++,t:elapsed,label});dirty=true;updateHUD();toast('마커 추가: '+label+' @ '+fmt1(elapsed));closeSheet();}
+    else if(a==='delMarker'){markers=markers.filter(m=>m.id!==Number(id));dirty=true;updateHUD();closeSheet();toast('마커 삭제');}
+    else if(a==='demo')startDemo(false);
+    else if(a==='doSave'){const n=($('saveName').value||'').trim()||('측정 '+fmtDT(new Date()).slice(0,16));closeSheet();await saveCurrent(n);}
+    else if(a==='openReport'){closeSheet();openReport();}
+    else if(a==='setCal'){const v=parseFloat($('calIn').value);calib=Number.isFinite(v)?Math.max(-60,Math.min(60,v)):0;if(T.length)dirty=true;fillUnitRow();updateHUD();closeSheet();toast('소음 보정값 '+(calib>=0?'+':'')+calib.toFixed(1)+' dB');}
+    else if(a==='resetCal'){calib=0;if(T.length)dirty=true;fillUnitRow();updateHUD();closeSheet();toast('소음 보정값 초기화');}
+    else if(a==='libtab')openLibrary(b.dataset.tab);
+    else if(a==='load')await loadRecord(id);
+    else if(a==='exportOne'){const m=await dbGet('meta',id);await exportRecords([id],'peakscout_'+(m?m.name:id).replace(/[\\/:*?"<>|\s]+/g,'_')+'.json');}
+    else if(a==='exportAll'){const ms=(await dbAll('meta')).filter(m=>!m.deleted);await exportRecords(ms.map(m=>m.id),'peakscout_backup_'+stamp()+'.json');}
+    else if(a==='importFile')els.importFile.click();
+    else if(a==='trash'){await setDeleted(id,true);toast('휴지통으로 이동 — 30일 안에 복원할 수 있습니다');openLibrary();}
+    else if(a==='restore'){await setDeleted(id,false);toast('복원했습니다');openLibrary();}
+    else if(a==='restoreAll'){const ms=(await dbAll('meta')).filter(m=>m.deleted);for(const m of ms)await setDeleted(m.id,false);toast(ms.length+'건 복원');openLibrary('saved');}
+    else if(a==='purge'){if(!confirm('이 기록을 영구 삭제합니다. 되돌릴 수 없습니다.'))return;await purge(id);toast('영구 삭제됨');openLibrary();}
+    else if(a==='emptyTrash'){const ms=(await dbAll('meta')).filter(m=>m.deleted);if(!ms.length||!confirm('휴지통의 기록 '+ms.length+'건을 영구 삭제합니다.'))return;for(const m of ms)await purge(m.id);toast('휴지통을 비웠습니다');openLibrary();}
+  }catch(err){toast('오류: '+(err&&err.message||err));}
+});
+
+/* ═════════ 보고서 / CSV ═════════ */
+function reportGraphImage(ch){
+  const vw=V(ch),k=vw.series,arr=S[k],u=vw.u;if(!arr.length)return'';
+  const w=1400,h=300,padL=78,padR=14,padT=16,padB=28,plotW=w-padL-padR,plotH=h-padT-padB;
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+  const t0=0,t1=Math.max(elapsed,1),[lo,hi]=yRange(k,arr,t0,t1);
+  const X=t=>padL+(t-t0)/(t1-t0)*plotW,Y=v=>padT+(1-(v-lo)/(hi-lo))*plotH;
+  ctx.strokeStyle='#e3e8ee';ctx.lineWidth=1;ctx.fillStyle='#5a6472';ctx.font='12px monospace';ctx.textAlign='left';ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,y=Y(v);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke();ctx.fillText(fv(u,v),6,y);}
+  ctx.textAlign='center';ctx.textBaseline='top';for(let i=0;i<=6;i++){const t=t0+(t1-t0)*i/6;ctx.fillText(fmt(t),X(t),h-padB+7);}
+  for(const m of markers){ctx.save();ctx.strokeStyle='#8a94a3';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(X(m.t),padT);ctx.lineTo(X(m.t),h-padB);ctx.stroke();ctx.fillStyle='#14181d';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(m.label,X(m.t)+4,padT+2);ctx.restore();}
+  ctx.strokeStyle=vw.c.rcolor;ctx.lineWidth=1.8;ctx.lineJoin='round';renderTrace(ctx,arr,t0,t1,X,Y,plotW);
+  for(const p of peaks){if(p.k!==k)continue;ctx.save();ctx.strokeStyle='#D2372B';ctx.setLineDash([5,4]);ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(X(p.t),padT);ctx.lineTo(X(p.t),h-padB);ctx.stroke();ctx.restore();}
+  return cv.toDataURL('image/png');
+}
+const sensLabel=()=>({2.5:'높음 (2.5σ)',3:'보통 (3σ)',4:'낮음 (4σ)'}[sensitivity]||sensitivity+'σ');
+function buildReport(){
+  const genAt=new Date(),set=currentSeriesSet();
+  const sumRows=CH_KEYS.map(ch=>Object.values(CHS[ch].metrics).map(m=>{
+    const k=m.series,{u}=unitForSeries(k),s=st[k],pc=peaks.filter(p=>p.k===k).length,sel=set.has(k);
+    return'<tr class="'+(sel?'sel':'')+'"><td><i class="cdot" style="--c:'+CHS[ch].color+'"></i>'+CHS[ch].name+'</td><td>'+m.label+'</td><td>'+u.u+'</td><td>'+(s.n?fv(u,s.sum/s.n):'-')+'</td><td>'+(s.n?fv(u,s.min):'-')+'</td><td>'+(s.n?fv(u,s.max):'-')+'</td><td>'+pc+'</td></tr>';}).join('')).join('');
+  const list=peaks.filter(p=>set.has(p.k)).sort((a,b)=>a.t-b.t);
+  const peakRows=list.slice(0,80).map((p,i)=>{const c=CHS[p.ch],{m,u}=unitForSeries(p.k);const idx=nearestIdx(p.t);
+    const o=CH_KEYS.filter(ch=>ch!==p.ch).map(ch=>{const w=V(ch);return CHS[ch].name+' '+fv(w.u,S[w.series][idx])+' '+w.u.u;}).join(' · ');
+    return'<tr><td>'+(i+1)+'</td><td>'+fmt1(p.t)+'</td><td>'+c.name+' '+m.label+'</td><td><b>'+fv(u,p.v)+' '+u.u+'</b></td><td>'+o+'</td></tr>';}).join('')||'<tr><td colspan="5">기록된 PEAK 이벤트가 없습니다.</td></tr>';
+  const mkRows=markers.map((m,i)=>{const idx=nearestIdx(m.t);const vals=CH_KEYS.map(ch=>{const w=V(ch);return CHS[ch].name+' '+fv(w.u,S[w.series][idx])+' '+w.u.u;}).join(' · ');
+    return'<tr><td>'+(i+1)+'</td><td>'+fmt1(m.t)+'</td><td>'+esc(m.label)+'</td><td>'+vals+'</td></tr>';}).join('')||'<tr><td colspan="4">구간 마커가 없습니다.</td></tr>';
+  els.report.innerHTML='<div class="rpt"><div class="rptHead"><h1>PEAK SCOUT 측정 보고서</h1><div class="rmeta">생성 '+fmtDT(genAt)+'</div></div>'
+    +'<table class="rtable"><tbody>'
+    +'<tr><th>기록명</th><td colspan="3">'+(currentRecName?esc(currentRecName):'(저장 안 됨)')+'</td></tr>'
+    +'<tr><th>측정 시작</th><td>'+(startedClock?fmtDT(startedClock):'-')+'</td><th>측정 종료</th><td>'+fmtDT(stoppedClock||genAt)+'</td></tr>'
+    +'<tr><th>실측 시간</th><td>'+fmt(elapsed)+'</td><th>설정 시간</th><td>'+(duration?durLabel(duration):'무제한(데모)')+'</td></tr>'
+    +'<tr><th>PEAK 민감도</th><td>'+sensLabel()+'</td><th>소음 보정값</th><td>'+(calib>=0?'+':'')+calib.toFixed(1)+' dB</td></tr>'
+    +'<tr><th>표시 지표</th><td colspan="3">'+CH_KEYS.map(ch=>{const w=V(ch);return CHS[ch].name+': '+w.m.label+' ['+w.u.u+']';}).join(' · ')+'</td></tr>'
+    +(demoMode?'<tr><th>모드</th><td colspan="3">데모 시뮬레이션(가상 신호)</td></tr>':'')
+    +'</tbody></table>'
+    +'<h2>전체 지표 통계 (노란 행 = 그래프 표시 지표)</h2><table class="rtable"><thead><tr><th>채널</th><th>측정량</th><th>단위</th><th>평균</th><th>최소</th><th>최대</th><th>PEAK</th></tr></thead><tbody>'+sumRows+'</tbody></table>'
+    +'<h2>PEAK 이벤트 기록'+(list.length>80?' (시각순 80건)':'')+'</h2><table class="rtable"><thead><tr><th>#</th><th>시각</th><th>지표</th><th>PEAK 값</th><th>동시 측정값</th></tr></thead><tbody>'+peakRows+'</tbody></table>'
+    +'<h2>구간 마커</h2><table class="rtable"><thead><tr><th>#</th><th>시각</th><th>라벨</th><th>측정값</th></tr></thead><tbody>'+mkRows+'</tbody></table>'
+    +'<h2>채널 그래프</h2>'+CH_KEYS.map(ch=>{const w=V(ch);return'<figure><img src="'+reportGraphImage(ch)+'" alt="'+CHS[ch].name+' 그래프"><figcaption>'+CHS[ch].name+' · '+w.m.label+' ['+w.u.u+'] — 빨간 점선: PEAK, 회색 실선: 구간 마커</figcaption></figure>';}).join('')
+    +'<p class="rnote">※ 스마트폰 내장 센서 측정값으로 상대 비교·문제 구간 탐색용입니다. 소음 dB는 마이크 특성에 따른 추정값(보정값 적용)이며, 진동 속도 rms는 가속도 적분값으로 센서 노이즈 바닥 이하는 신뢰도가 낮습니다. 자장 AC 성분은 센서 샘플링 한계로 50/60 Hz 전원 자장을 정확히 반영하지 않습니다. 인증·규격 판정에는 검교정된 계측기를 사용하십시오.</p></div>';
+}
+function openReport(){if(!T.length)return;buildReport();els.reportOverlay.classList.add('on');}
+function exportCsv(){
+  if(!T.length)return;
+  const head=['time_s','clock','vib_acc_peak_m/s2','vib_acc_rms_m/s2','vib_vel_rms_um/s','noise_Z_dB_rms','noise_A_dB(A)_rms','mag_total_uT','mag_DC_uT','mag_AC_rms_uT','marker'];
+  const mk={};markers.forEach(m=>{const i=nearestIdx(m.t);mk[i]=(mk[i]?mk[i]+' / ':'')+m.label;});
+  const lines=[head.join(',')];
+  for(let i=0;i<T.length;i++){
+    lines.push([T[i].toFixed(1),clockAt(T[i]),S.vib_acc[i].toFixed(4),S.vib_rms[i].toFixed(4),S.vib_vel[i].toFixed(1),(S.noise_z[i]+calib).toFixed(2),(S.noise_a[i]+calib).toFixed(2),S.mag_tot[i].toFixed(3),S.mag_dc[i].toFixed(3),S.mag_ac[i].toFixed(4),mk[i]?'"'+String(mk[i]).replace(/"/g,'""')+'"':''].join(','));
+  }
+  download('peakscout_'+(currentRecName||stamp()).replace(/[\\/:*?"<>|\s]+/g,'_')+'.csv',new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8'}));
+}
+
+/* ═════════ HUD / 컨트롤 ═════════ */
+function subText(ch,i){
+  if(i<0)return'\u00a0';
+  if(ch==='vib')return'속도 '+S.vib_vel[i].toFixed(0)+' µm/s';
+  if(ch==='noise')return'A '+(S.noise_a[i]+calib).toFixed(1)+' dB(A)';
+  const u=V('mag').u,base=CHS.mag.metrics.dc.units.find(x=>x.id===u.id)||CHS.mag.metrics.dc.units[0];
+  return'DC '+fv(base,S.mag_dc[i])+' · AC '+fv(base,S.mag_ac[i]);
+}
+function updateHUD(){
+  els.clock.textContent=fmt(elapsed);
+  els.rec.classList.toggle('on',state==='running');
+  const last=T.length-1;
+  for(const ch of CH_KEYS){
+    const w=V(ch),s=st[w.series];
+    els['cu-'+ch].textContent=w.u.u;
+    els['cur-'+ch].textContent=last>=0?fv(w.u,S[w.series][last]):'--';
+    els['sub-'+ch].textContent=subText(ch,last);
+    els['hold-'+ch].textContent=s.n?fv(w.u,s.max):'--';
+    const lp=lastPk[w.series];els['lamp-'+ch].classList.toggle('on',!!lp&&elapsed-lp.t<10&&state!=='stopped');
+  }
+  const w=V(currentCh),s=st[w.series];
+  els['st-cur'].textContent=last>=0?fv(w.u,S[w.series][last])+' '+w.u.u:'--';
+  els['st-peak'].textContent=s.n?fv(w.u,s.max)+' '+w.u.u:'--';
+  els['st-avg'].textContent=s.n?fv(w.u,s.sum/s.n)+' '+w.u.u:'--';
+  els.graphTitle.textContent=w.c.name+' · '+w.m.label+' ['+w.u.u+']';
+  els.emptyState.style.display=state==='idle'?'flex':'none';
+  els.btnPeakList.disabled=peaks.length===0;
+  els.btnReport.disabled=!T.length;
+  els.btnSave.disabled=!(T.length&&(state==='paused'||state==='stopped'));
+  els.btnSave.textContent=currentRecordId&&!dirty?'저장됨':'저장';
+  els.demoTag.style.display=demoMode?'':'none';
+  const showBadge=!!(currentRecName||(state==='stopped'&&T.length));
+  els.recBadge.style.display=showBadge?'flex':'none';
+  if(showBadge){els.recName.textContent=currentRecName||'저장 안 된 측정';els.recState.textContent=currentRecordId?(dirty?'변경됨 · 미저장':'저장됨'):'미저장';els.recState.classList.toggle('dirty',!currentRecordId||dirty);}
+  document.querySelectorAll('.cell[data-ch]').forEach(c=>c.classList.toggle('sel',c.dataset.ch===currentCh));
+}
+function updateControls(){
+  els.btnStart.style.display=(state==='idle'||state==='stopped')?'':'none';
+  els.btnPause.style.display=state==='running'?'':'none';
+  els.btnResume.style.display=state==='paused'?'':'none';
+  els.btnStop.style.display=(state==='running'||state==='paused')?'':'none';
+  els.btnStart.textContent=state==='stopped'?'새 측정':'시작';
+  document.querySelectorAll('.chip[data-dur]').forEach(b=>b.disabled=state==='running'||state==='paused');
+  els.btnMarker.disabled=!(state==='running'||state==='paused');
+}
+function setZoomUI(){document.querySelectorAll('.zbtn[data-z]').forEach(b=>b.classList.toggle('active',Number(b.dataset.z)===zoomIdx));$('btnLive').classList.toggle('active',follow);}
+function fillUnitRow(){
+  const c=CHS[currentCh],w=V(currentCh);
+  els.selMetric.innerHTML=Object.entries(c.metrics).map(([id,m])=>'<option value="'+id+'"'+(id===view[currentCh].m?' selected':'')+'>'+m.label+'</option>').join('');
+  els.selUnit.innerHTML=w.m.units.map(u=>'<option value="'+u.id+'"'+(u.id===w.u.id?' selected':'')+'>'+u.u+'</option>').join('');
+  els.btnCal.style.display=currentCh==='noise'?'':'none';
+  els.btnCal.textContent='보정 '+(calib>=0?'+':'')+calib.toFixed(1);
+  els.unitNote.textContent=w.m.note;
+}
+function setChannel(ch){currentCh=ch;document.querySelectorAll('.tab[data-ch]').forEach(x=>x.classList.toggle('active',x.dataset.ch===ch));fillUnitRow();updateHUD();}
+
+/* ═════════ 이벤트 ═════════ */
+els.btnStart.addEventListener('click',async()=>{
+  if(state==='stopped'&&dirty&&T.length&&!confirm('저장하지 않은 측정이 있습니다. 새 측정을 시작하면 지워집니다. 계속할까요?'))return;
+  resetData();duration=durSel;updateHUD();await start();
+});
+els.btnPause.addEventListener('click',pause);
+els.btnResume.addEventListener('click',resume);
+els.btnStop.addEventListener('click',()=>stop(false));
+els.btnDemo.addEventListener('click',()=>startDemo(false));
+els.btnLib.addEventListener('click',()=>openLibrary('saved'));
+els.btnLib2.addEventListener('click',()=>openLibrary('saved'));
+els.btnHelp.addEventListener('click',openHelp);
+els.btnHelp2.addEventListener('click',openHelp);
+els.btnPeakList.addEventListener('click',openPeakList);
+els.btnSave.addEventListener('click',()=>openSaveSheet(false));
+els.btnCal.addEventListener('click',openCalSheet);
+els.btnMarker.addEventListener('click',()=>{
+  if(state!=='running'&&state!=='paused')return;
+  openSheet('<div class="sheetHead"><b>구간 마커 추가</b></div><p class="sheetDesc">현재 위치('+fmt1(elapsed)+')에 마커를 남깁니다. STAGE 위치나 확인 지점을 적어두면 보고서에 함께 나옵니다.</p>'
+    +'<input id="mkLabel" class="tinput" type="text" maxlength="24" placeholder="예: STAGE A 이송 개시" value="M'+(markers.length+1)+'">'
+    +'<div class="sheetBtns"><button class="btn primary" data-action="addMarker">추가</button><button class="btn" data-action="close">취소</button></div>');
+  setTimeout(()=>{const i=$('mkLabel');if(i){i.focus();i.select();}},60);
+});
+els.btnReport.addEventListener('click',openReport);
+els.btnCloseReport.addEventListener('click',()=>els.reportOverlay.classList.remove('on'));
+els.btnPrint.addEventListener('click',()=>window.print());
+els.btnCsv.addEventListener('click',exportCsv);
+els.sensSel.addEventListener('change',()=>{
+  sensitivity=Number(els.sensSel.value);
+  if(state==='stopped'&&T.length){reanalyze();dirty=true;updateHUD();const set=currentSeriesSet();toast('PEAK 재분석 완료 — '+peaks.filter(p=>set.has(p.k)).length+'건');}
+});
+els.selMetric.addEventListener('change',()=>{view[currentCh].m=els.selMetric.value;fillUnitRow();updateHUD();});
+els.selUnit.addEventListener('change',()=>{view[currentCh].u=els.selUnit.value;fillUnitRow();updateHUD();});
+$('btnLive').addEventListener('click',()=>{follow=true;zoomIdx=0;setZoomUI();});
+document.querySelectorAll('.zbtn[data-z]').forEach(b=>b.addEventListener('click',()=>{zoomIdx=Number(b.dataset.z);if(zoomIdx===0)follow=true;setZoomUI();clampView();}));
+document.querySelectorAll('.tab[data-ch],.cell[data-ch]').forEach(b=>b.addEventListener('click',()=>setChannel(b.dataset.ch)));
+document.querySelectorAll('.chip[data-dur]').forEach(b=>b.addEventListener('click',()=>{durSel=Number(b.dataset.dur);document.querySelectorAll('.chip[data-dur]').forEach(x=>x.classList.toggle('active',x===b));}));
+window.addEventListener('beforeunload',e=>{if(state==='running'||state==='paused'||(dirty&&T.length)){e.preventDefault();e.returnValue='';}});
+
+let toastTimer=null;
+function toast(msg){els.toast.textContent=msg;els.toast.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>els.toast.classList.remove('on'),2800);}
+
+function startDemo(seeded){
+  closeSheet();
+  if(state==='running'||state==='paused')return;
+  if(state==='stopped'&&dirty&&T.length&&!confirm('저장하지 않은 측정이 있습니다. 데모를 시작하면 지워집니다. 계속할까요?'))return;
+  resetData();demoMode=true;duration=null;demoReset();
+  if(seeded)seedDemo();
+  if(!startedClock)startedClock=new Date();
+  state='running';sampleTimer=setInterval(tick,100);
+  updateControls();updateHUD();
+  toast('데모 — 가상 신호입니다. 종료하면 저장/불러오기도 체험할 수 있습니다');
+}
+
+/* 초기화 */
+fillUnitRow();setZoomUI();updateControls();updateHUD();
+requestAnimationFrame(draw);
+if(/demo/.test(location.hash))startDemo(true);
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
